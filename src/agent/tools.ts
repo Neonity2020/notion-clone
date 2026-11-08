@@ -2,6 +2,7 @@ import { useStore, childrenOf, pagePath } from '../store';
 import { markdownToBlocks } from '../lib/markdown';
 import type { Block, BlockType, Page, PageMap } from '../types';
 import type { ToolDef } from './llm';
+import type { AgentTool } from '@earendil-works/pi-agent-core';
 
 export type AgentMode = 'ask' | 'agent';
 
@@ -298,6 +299,26 @@ export const TOOLS: ToolSpec[] = [
 
 export function toolDefs(mode: AgentMode): ToolDef[] {
   return TOOLS.filter((t) => mode === 'agent' || !t.write).map((t) => t.def);
+}
+
+/**
+ * Creates Pi-SDK compatible AgentTool instances for the Pi Agent runtime.
+ */
+export function createPiTools(mode: AgentMode, ctx: ToolContext): AgentTool[] {
+  return TOOLS.filter((t) => mode === 'agent' || !t.write).map((t) => ({
+    name: t.def.function.name,
+    label: describeCall(t.def.function.name, '{}'),
+    description: t.def.function.description,
+    parameters: t.def.function.parameters,
+    execute: async (_toolCallId: string, params: any) => {
+      const out = await runTool(t.def.function.name, JSON.stringify(params ?? {}), mode, ctx);
+      return {
+        content: [{ type: 'text' as const, text: out.output }],
+        details: { ok: out.ok },
+        isError: !out.ok,
+      };
+    },
+  }));
 }
 
 export function isWriteTool(name: string) {

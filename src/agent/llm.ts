@@ -1,4 +1,40 @@
 /** Minimal OpenAI-compatible chat-completions client with streaming + tool calls. */
+import { createAssistantMessageEventStream, type AssistantMessage, type Usage } from '@earendil-works/pi-ai';
+import type { StreamFn } from '@earendil-works/pi-agent-core';
+
+export const DEFAULT_USAGE: Usage = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+  totalTokens: 0,
+  cost: {
+    input: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    total: 0,
+  },
+};
+
+export function makeAssistantMessage(
+  content: AssistantMessage['content'],
+  stopReason: AssistantMessage['stopReason'],
+  model = 'default',
+  errorMessage?: string,
+): AssistantMessage {
+  return {
+    role: 'assistant',
+    content,
+    api: 'chat' as any,
+    provider: 'custom' as any,
+    model,
+    usage: DEFAULT_USAGE,
+    stopReason,
+    errorMessage,
+    timestamp: Date.now(),
+  };
+}
 
 export interface LLMSettings {
   baseURL: string;
@@ -145,4 +181,178 @@ export async function chat(opts: {
   if (buf.trim().startsWith('data:')) handle(buf.trim().slice(5).trim());
 
   return { content, toolCalls: calls.filter(Boolean) };
+}
+
+/**
+ * Creates a streamFn adapter for Pi-SDK Agent runtime using the user-configured LLM provider.
+ */
+export function createPiStreamFn(settings: LLMSettings, abortSignal?: AbortSignal): StreamFn {
+  return async (_model, context, options) => {
+    const stream = createAssistantMessageEventStream();
+
+    const controller = new AbortController();
+    const forwardAbort = () => controller.abort();
+    abortSignal?.addEventListener('abort', forwardAbort);
+    options?.signal?.addEventListener('abort', forwardAbort);
+
+    try {
+      const chatMessages: ChatMessage[] = [];
+      const toolDefsList: ToolDef[] = [];
+
+      for (const m of context.messages as any[]) {
+        if (m.role === 'system') {
+          chatMessages.push({
+            role: 'system',
+            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+          });
+          if (Array.isArray(m.toolsAdded)) {
+            for (const t of m.toolsAdded) {
+              toolDefsList.push({
+                type: 'function',
+                function: {
+                  name: t.name,
+                  description: t.description || '',
+                  parameters: t.parameters || {},
+                },
+              });
+            }
+          }
+        } else if (m.role === 'user') {
+          const text = Array.isArray(m.content)
+            ? m.content.map((c: any) => c.text || '').join('')
+            : String(m.content ?? '');
+          chatMessages.push({ role: 'user', content: text });
+        } else if (m.role === 'assistant') {
+          const text = (m.content || [])
+            .filter((c: any) => c.type === 'text')
+            .map((c: any) => c.text || '')
+            .join('');
+          const toolCalls = (m.content || [])
+            .filter((c: any) => c.type === 'toolCall')
+            .map((c: any) => ({
+              id: c.id,
+              type: 'function' as const,
+              function: {
+                name: c.name,
+                arguments: typeof c.arguments === 'string' ? c.arguments : JSON.stringify(c.arguments ?? {}),
+              },
+            }));
+          chatMessages.push({
+            role: 'assistant',
+            content: text || null,
+            ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
+          });
+        } else if (m.role === 'toolResult') {
+          const text = Array.isArray(m.content)
+            ? m.content.map((c: any) => c.text || '').join('')
+            : String(m.content ?? '');
+          chatMessages.push({
+            role: 'tool',
+            tool_call_id: m.toolCallId,
+            content: text,
+          });
+        }
+      }
+
+      if (!toolDefsList.length && Array.isArray((context as any).tools)) {
+        for (const t of (context as any).tools) {
+          toolDefsList.push({
+            type: 'function',
+            function: {
+              name: t.name,
+              description: t.description || '',
+              parameters: t.parameters || {},
+            },
+          });
+        }
+      }
+
+      let started = false;
+      let textStarted = false;
+      let streamedContent = '';
+      const partialMsg: AssistantMessage = makeAssistantMessage([], 'stop', settings.model);
+
+      const ensureStart = () => {
+        if (!started) {
+          started = true;
+          stream.push({ type: 'start', partial: partialMsg });
+        }
+      };
+
+      const res = await chat({
+        settings,
+        messages: chatMessages,
+        tools: toolDefsList.length ? toolDefsList : undefined,
+        signal: controller.signal,
+        onDelta: (chunk) => {
+          ensureStart();
+          if (!textStarted) {
+            textStarted = true;
+            stream.push({ type: 'text_start', contentIndex: 0, partial: partialMsg });
+          }
+          streamedContent += chunk;
+          stream.push({ type: 'text_delta', contentIndex: 0, delta: chunk, partial: partialMsg });
+        },
+      });
+
+      ensureStart();
+      if (textStarted) {
+        stream.push({ type: 'text_end', contentIndex: 0, content: streamedContent, partial: partialMsg });
+      }
+
+      const toolCallItems = res.toolCalls.map((tc, idx) => {
+        let argsObj: any = {};
+        try {
+          argsObj = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+        } catch {
+          argsObj = {};
+        }
+        const callObj = {
+          type: 'toolCall' as const,
+          id: tc.id,
+          name: tc.function.name,
+          arguments: argsObj,
+        };
+        stream.push({
+          type: 'toolcall_end',
+          contentIndex: (textStarted ? 1 : 0) + idx,
+          toolCall: callObj,
+          partial: partialMsg,
+        });
+        return callObj;
+      });
+
+      const finalContent: AssistantMessage['content'] = [
+        ...(streamedContent ? [{ type: 'text' as const, text: streamedContent }] : []),
+        ...toolCallItems,
+      ];
+
+      const finalStopReason = toolCallItems.length ? ('toolUse' as const) : ('stop' as const);
+      const finalMsg: AssistantMessage = makeAssistantMessage(finalContent, finalStopReason, settings.model);
+
+      stream.push({
+        type: 'done',
+        reason: finalStopReason,
+        message: finalMsg,
+      });
+    } catch (err: any) {
+      const isAbort = controller.signal.aborted || err?.name === 'AbortError';
+      const errMsg = isAbort ? 'Aborted' : err?.message || String(err);
+      stream.push({
+        type: 'error',
+        reason: isAbort ? 'aborted' : 'error',
+        error: makeAssistantMessage(
+          [{ type: 'text', text: errMsg }],
+          isAbort ? 'aborted' : 'error',
+          settings.model,
+          errMsg,
+        ),
+      });
+    } finally {
+      abortSignal?.removeEventListener('abort', forwardAbort);
+      options?.signal?.removeEventListener('abort', forwardAbort);
+    }
+
+    return stream;
+  };
 }

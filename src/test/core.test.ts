@@ -2,7 +2,10 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { blocksToMarkdown, markdownToBlocks } from '../lib/markdown';
 import { displayToRaw, parseInline, renderInlineHTML } from '../lib/inline';
 import { useStore } from '../store';
-import { runTool, toolDefs } from '../agent/tools';
+import { runTool, toolDefs, createPiTools } from '../agent/tools';
+import { Agent } from '@earendil-works/pi-agent-core';
+import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';
+import { makeAssistantMessage } from '../agent/llm';
 
 describe('markdown', () => {
   it('parses block types', () => {
@@ -102,5 +105,63 @@ describe('agent tools', () => {
     expect(useStore.getState().mainView).toBe('page');
     expect(useStore.getState().currentPageId).toBe(pid);
     expect(useStore.getState().agentOpen).toBe(true);
+  });
+
+  it('runs Pi-SDK Agent with tool calls and state updates', async () => {
+    const c = ctx();
+    const piTools = createPiTools('agent', c);
+    expect(piTools.some((t) => t.name === 'insert_blocks')).toBe(true);
+
+    let turn = 0;
+    const streamFn = () => {
+      turn++;
+      const stream = createAssistantMessageEventStream();
+      setTimeout(() => {
+        if (turn === 1) {
+          const msg = makeAssistantMessage(
+            [{ type: 'toolCall', id: 'call_test', name: 'search_pages', arguments: { query: '代码' } }],
+            'toolUse',
+          );
+          stream.push({ type: 'start', partial: msg });
+          stream.push({ type: 'done', reason: 'toolUse', message: msg });
+        } else {
+          const msg = makeAssistantMessage(
+            [{ type: 'text', text: '已找到相关代码笔记。' }],
+            'stop',
+          );
+          stream.push({ type: 'start', partial: msg });
+          stream.push({ type: 'text_start', contentIndex: 0, partial: msg });
+          stream.push({ type: 'text_delta', contentIndex: 0, delta: '已找到相关代码笔记。', partial: msg });
+          stream.push({ type: 'text_end', contentIndex: 0, content: '已找到相关代码笔记。', partial: msg });
+          stream.push({ type: 'done', reason: 'stop', message: msg });
+        }
+      }, 10);
+      return stream;
+    };
+
+    const agent = new Agent({
+      streamFn,
+      initialState: {
+        systemPrompt: 'System',
+        model: { id: 'test-model' } as any,
+        tools: piTools,
+        messages: [{ role: 'user', content: [{ type: 'text', text: '搜索代码' }], timestamp: 1 }],
+      },
+    });
+
+    const events: string[] = [];
+    agent.subscribe((ev) => {
+      events.push(ev.type);
+    });
+
+    await agent.continue();
+
+    expect(events).toContain('tool_execution_start');
+    expect(events).toContain('tool_execution_end');
+    expect(events).toContain('agent_end');
+
+    const assistantMessages = agent.state.messages.filter((m) => m.role === 'assistant');
+    expect(assistantMessages).toHaveLength(2);
+    expect((assistantMessages[1].content[0] as any).text).toBe('已找到相关代码笔记。');
   });
 });
