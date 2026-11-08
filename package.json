@@ -1,28 +1,17 @@
 {
-  "name": "notion-clone",
+  "name": "notion-clone-monorepo",
   "private": true,
-  "version": "0.1.0",
-  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "typecheck": "tsc -b"
-  },
-  "dependencies": {
-    "@earendil-works/pi-agent-core": "^1.5.0",
-    "@earendil-works/pi-ai": "^1.5.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "zustand": "^4.5.5"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.11",
-    "vitest": "^2.1.8"
+    "dev": "bun --filter @notion-clone/web dev",
+    "dev:desktop": "bun run build:web && bun --filter @notion-clone/desktop dev",
+    "build": "bun run build:web && bun run build:desktop",
+    "build:web": "bun --filter @notion-clone/web build",
+    "build:desktop": "bun --filter @notion-clone/desktop build",
+    "package:desktop": "bun run build && bun --filter @notion-clone/desktop package",
+    "test": "bun --filter @notion-clone/web test",
+    "typecheck": "bun --filter @notion-clone/web typecheck && bun --filter @notion-clone/desktop typecheck"
   }
 }

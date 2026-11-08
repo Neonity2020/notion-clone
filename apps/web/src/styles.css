@@ -305,3 +305,18 @@ kbd { font-family: var(--font); font-size: 11px; color: var(--muted); margin-lef
   .block-controls { left: -24px; }
   .block-controls .ctl:first-child { display: none; }
 }
+
+/* ---------- Electron Desktop Styling ---------- */
+body.is-electron.platform-darwin .sidebar-header {
+  padding-top: 24px;
+}
+body.is-electron.platform-darwin .topbar {
+  padding-left: 20px;
+  -webkit-app-region: drag;
+}
+body.is-electron.platform-darwin .topbar button,
+body.is-electron.platform-darwin .topbar input,
+body.is-electron.platform-darwin .topbar .crumb,
+body.is-electron.platform-darwin .breadcrumbs {
+  -webkit-app-region: no-drag;
+}

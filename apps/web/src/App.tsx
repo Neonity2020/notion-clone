@@ -36,6 +36,29 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api?.onMenuAction) return;
+    const cleanup = api.onMenuAction((action: string) => {
+      const s = useStore.getState();
+      if (action === 'new-page') {
+        const id = s.createPage();
+        s.openPage(id);
+      } else if (action === 'toggle-agent') {
+        if (s.mainView === 'agent-home') {
+          const fallbackId = s.currentPageId ?? Object.keys(s.pages)[0] ?? null;
+          s.setAgentOpen(true);
+          s.openPage(fallbackId);
+        } else {
+          s.setAgentOpen(!s.agentOpen);
+        }
+      } else if (action === 'toggle-sidebar') {
+        setCollapsed((c) => !c);
+      }
+    });
+    return cleanup;
+  }, []);
+
   if (!loaded) return <div className="loading">加载中…</div>;
 
   return (

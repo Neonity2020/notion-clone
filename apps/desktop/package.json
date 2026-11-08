@@ -1,0 +1,46 @@
+{
+  "name": "@notion-clone/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "bun run build:main && bun run build:preload",
+    "build:main": "bun build src/main.ts --outfile dist/main.js --target node --external electron",
+    "build:preload": "bun build src/preload.ts --outfile dist/preload.js --target node --external electron",
+    "dev": "bun run build && electron .",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit",
+    "package": "bun run build && electron-builder --dir",
+    "dist": "bun run build && electron-builder"
+  },
+  "dependencies": {
+    "@notion-clone/web": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.6.3"
+  },
+  "build": {
+    "appId": "com.notionclone.app",
+    "productName": "NotionClone",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "../web/dist/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dir"]
+    },
+    "win": {
+      "target": ["dir"]
+    },
+    "linux": {
+      "target": ["dir"]
+    }
+  }
+}
