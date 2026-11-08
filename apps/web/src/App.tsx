@@ -62,7 +62,7 @@ export function App() {
   if (!loaded) return <div className="loading">加载中…</div>;
 
   return (
-    <div className="app">
+    <div className={`app${collapsed ? ' sidebar-collapsed' : ''}`}>
       {!collapsed && <Sidebar onCollapse={() => setCollapsed(true)} />}
       {mainView === 'agent-home' ? (
         <AgentHome sidebarCollapsed={collapsed} onExpandSidebar={() => setCollapsed(false)} />

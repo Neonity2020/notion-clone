@@ -51,7 +51,7 @@ kbd { font-family: var(--font); font-size: 11px; color: var(--muted); margin-lef
 
 /* ---------- Sidebar ---------- */
 .sidebar { width: 248px; flex-shrink: 0; background: var(--bg-side); border-right: 1px solid var(--border); display: flex; flex-direction: column; font-size: 14px; }
-.sidebar-header { display: flex; align-items: center; padding: 12px 10px 6px 14px; }
+.sidebar-header { display: flex; align-items: center; height: 44px; padding: 0 10px 0 14px; box-sizing: border-box; }
 .workspace { font-weight: 600; flex: 1; }
 .sidebar-search { padding: 4px 8px; }
 .sidebar-search input { width: 100%; border: 1px solid var(--border); background: var(--bg); border-radius: 6px; padding: 5px 8px; font-size: 13px; outline: none; }
@@ -307,16 +307,34 @@ kbd { font-family: var(--font); font-size: 11px; color: var(--muted); margin-lef
 }
 
 /* ---------- Electron Desktop Styling ---------- */
-body.is-electron.platform-darwin .sidebar-header {
-  padding-top: 24px;
+.is-electron.platform-darwin .sidebar-header {
+  padding-left: 78px;
+  height: 44px;
 }
-body.is-electron.platform-darwin .topbar {
-  padding-left: 20px;
+
+.is-electron.platform-darwin .app.sidebar-collapsed .topbar {
+  padding-left: 78px;
+}
+
+/* Draggable titlebar regions across the desktop application */
+.is-electron .sidebar-header,
+.is-electron .topbar,
+.is-electron .agent-header {
   -webkit-app-region: drag;
+  user-select: none;
 }
-body.is-electron.platform-darwin .topbar button,
-body.is-electron.platform-darwin .topbar input,
-body.is-electron.platform-darwin .topbar .crumb,
-body.is-electron.platform-darwin .breadcrumbs {
+
+/* Ensure all buttons, links, inputs, and interactive components are clickable */
+.is-electron .sidebar-header button,
+.is-electron .sidebar-header a,
+.is-electron .sidebar-header input,
+.is-electron .topbar button,
+.is-electron .topbar a,
+.is-electron .topbar input,
+.is-electron .topbar .crumb,
+.is-electron .topbar .breadcrumbs button,
+.is-electron .agent-header button,
+.is-electron .agent-header .mode-switch button,
+.is-electron .agent-header a {
   -webkit-app-region: no-drag;
 }

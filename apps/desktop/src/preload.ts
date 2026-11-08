@@ -17,7 +17,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 });
 
-// Inject desktop class to body when DOM is ready
+// Inject desktop classes immediately and on DOM ready
+try {
+  document.documentElement.classList.add('is-electron', `platform-${process.platform}`);
+} catch {
+  // ignore
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-  document.body.classList.add('is-electron', `platform-${process.platform}`);
+  document.documentElement.classList.add('is-electron', `platform-${process.platform}`);
+  document.body?.classList.add('is-electron', `platform-${process.platform}`);
 });
