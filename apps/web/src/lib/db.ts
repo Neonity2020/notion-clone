@@ -1,11 +1,32 @@
 import type { Page } from '../types';
 
+declare global {
+  interface Window {
+    electronAPI?: {
+      isElectron?: boolean;
+      platform?: string;
+      openExternal?: (url: string) => void;
+      onMenuAction?: (callback: (action: string) => void) => () => void;
+      db?: {
+        loadAllPages: () => Promise<Page[]>;
+        loadPages: (ids: string[]) => Promise<(Page | undefined)[]>;
+        writePages: (put: Page[], del: string[]) => Promise<void>;
+        clearAll: () => Promise<void>;
+      };
+    };
+  }
+}
+
 /** Minimal promise wrapper around IndexedDB. One object store: pages (keyPath id). */
 const DB_NAME = 'notion-clone';
 const DB_VERSION = 1;
 const STORE = 'pages';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+
+function hasElectronDb(): boolean {
+  return typeof window !== 'undefined' && Boolean(window.electronAPI?.db);
+}
 
 function openDB(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
@@ -30,6 +51,10 @@ function done(tx: IDBTransaction): Promise<void> {
 }
 
 export async function loadAllPages(): Promise<Page[]> {
+  if (hasElectronDb()) {
+    return window.electronAPI!.db!.loadAllPages();
+  }
+
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
@@ -39,6 +64,10 @@ export async function loadAllPages(): Promise<Page[]> {
 }
 
 export async function loadPages(ids: string[]): Promise<(Page | undefined)[]> {
+  if (hasElectronDb()) {
+    return window.electronAPI!.db!.loadPages(ids);
+  }
+
   const db = await openDB();
   const store = db.transaction(STORE, 'readonly').objectStore(STORE);
   return Promise.all(
@@ -54,6 +83,10 @@ export async function loadPages(ids: string[]): Promise<(Page | undefined)[]> {
 }
 
 export async function writePages(put: Page[], del: string[]): Promise<void> {
+  if (hasElectronDb()) {
+    return window.electronAPI!.db!.writePages(put, del);
+  }
+
   if (!put.length && !del.length) return;
   const db = await openDB();
   const tx = db.transaction(STORE, 'readwrite');
@@ -64,6 +97,10 @@ export async function writePages(put: Page[], del: string[]): Promise<void> {
 }
 
 export async function clearAll(): Promise<void> {
+  if (hasElectronDb()) {
+    return window.electronAPI!.db!.clearAll();
+  }
+
   const db = await openDB();
   const tx = db.transaction(STORE, 'readwrite');
   tx.objectStore(STORE).clear();

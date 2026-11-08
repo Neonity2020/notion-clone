@@ -9,6 +9,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('menu:action', handler);
     return () => ipcRenderer.removeListener('menu:action', handler);
   },
+  db: {
+    loadAllPages: () => ipcRenderer.invoke('db:load-all-pages'),
+    loadPages: (ids: string[]) => ipcRenderer.invoke('db:load-pages', ids),
+    writePages: (put: any[], del: string[]) => ipcRenderer.invoke('db:write-pages', { put, del }),
+    clearAll: () => ipcRenderer.invoke('db:clear-all'),
+  },
 });
 
 // Inject desktop class to body when DOM is ready

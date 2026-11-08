@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "bun run build:main && bun run build:preload",
-    "build:main": "bun build src/main.ts --outfile dist/main.js --target node --external electron",
+    "build:main": "bun build src/main.ts --outfile dist/main.js --target node --external electron --external better-sqlite3",
     "build:preload": "bun build src/preload.ts --outfile dist/preload.js --target node --external electron",
     "dev": "bun run build && electron .",
     "start": "electron .",
@@ -14,11 +14,14 @@
     "dist": "bun run build && electron-builder"
   },
   "dependencies": {
-    "@notion-clone/web": "workspace:*"
+    "@notion-clone/web": "workspace:*",
+    "better-sqlite3": "^13.0.3"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.2.1",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.9.0",
-    "electron": "^33.2.1",
+    "electron": "^45.0.0",
     "electron-builder": "^25.1.8",
     "typescript": "^5.6.3"
   },

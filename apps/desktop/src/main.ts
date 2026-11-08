@@ -2,6 +2,14 @@ import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell, ipcMain } 
 import * as path from 'path';
 import * as fs from 'fs';
 import * as http from 'http';
+import {
+  initDatabase,
+  loadAllPagesFromDb,
+  loadPagesFromDb,
+  writePagesToDb,
+  clearAllPagesFromDb,
+  type PagePayload,
+} from './db';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -189,6 +197,28 @@ function setupMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// Database IPC Handlers
+ipcMain.handle('db:load-all-pages', async () => {
+  return loadAllPagesFromDb();
+});
+
+ipcMain.handle('db:load-pages', async (_event, ids: string[]) => {
+  return loadPagesFromDb(ids);
+});
+
+ipcMain.handle(
+  'db:write-pages',
+  async (_event, payload: { put: PagePayload[]; del: string[] }) => {
+    writePagesToDb(payload.put, payload.del);
+    return true;
+  },
+);
+
+ipcMain.handle('db:clear-all', async () => {
+  clearAllPagesFromDb();
+  return true;
+});
+
 // IPC Handlers
 ipcMain.on('app:open-external', (_event, url: string) => {
   if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
@@ -197,6 +227,7 @@ ipcMain.on('app:open-external', (_event, url: string) => {
 });
 
 app.whenReady().then(() => {
+  initDatabase();
   createWindow();
 
   app.on('activate', () => {
