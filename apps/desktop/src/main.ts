@@ -11,6 +11,10 @@ import {
   type PagePayload,
 } from './db';
 
+if (app) {
+  app.name = 'NotionClone';
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 function checkDevServer(url: string): Promise<boolean> {
@@ -199,24 +203,44 @@ function setupMenu() {
 
 // Database IPC Handlers
 ipcMain.handle('db:load-all-pages', async () => {
-  return loadAllPagesFromDb();
+  try {
+    return loadAllPagesFromDb();
+  } catch (err) {
+    console.error('[IPC db:load-all-pages] Error:', err);
+    return [];
+  }
 });
 
 ipcMain.handle('db:load-pages', async (_event, ids: string[]) => {
-  return loadPagesFromDb(ids);
+  try {
+    return loadPagesFromDb(ids);
+  } catch (err) {
+    console.error('[IPC db:load-pages] Error:', err);
+    return [];
+  }
 });
 
 ipcMain.handle(
   'db:write-pages',
   async (_event, payload: { put: PagePayload[]; del: string[] }) => {
-    writePagesToDb(payload.put, payload.del);
-    return true;
+    try {
+      writePagesToDb(payload.put, payload.del);
+      return true;
+    } catch (err) {
+      console.error('[IPC db:write-pages] Error:', err);
+      return false;
+    }
   },
 );
 
 ipcMain.handle('db:clear-all', async () => {
-  clearAllPagesFromDb();
-  return true;
+  try {
+    clearAllPagesFromDb();
+    return true;
+  } catch (err) {
+    console.error('[IPC db:clear-all] Error:', err);
+    return false;
+  }
 });
 
 // IPC Handlers
@@ -226,15 +250,26 @@ ipcMain.on('app:open-external', (_event, url: string) => {
   }
 });
 
-app.whenReady().then(() => {
-  initDatabase();
-  createWindow();
+app.whenReady().then(async () => {
+  try {
+    initDatabase();
+  } catch (err) {
+    console.error('Failed to initialize database on startup:', err);
+  }
+
+  try {
+    await createWindow();
+  } catch (err) {
+    console.error('Failed to create main window:', err);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      createWindow().catch((err) => console.error('Failed to recreate window on activate:', err));
     }
   });
+}).catch((err) => {
+  console.error('Error during app.whenReady:', err);
 });
 
 app.on('window-all-closed', () => {

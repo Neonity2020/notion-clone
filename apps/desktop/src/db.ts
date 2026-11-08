@@ -30,23 +30,40 @@ let db: Database.Database | null = null;
 export function initDatabase(dbPath?: string): Database.Database {
   if (db) return db;
 
-  const resolvedPath =
-    dbPath ||
-    path.join(
-      app?.getPath ? app.getPath('userData') : process.cwd(),
-      'notion-clone.db',
-    );
-
-  const dir = path.dirname(resolvedPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  let resolvedPath = dbPath;
+  if (!resolvedPath) {
+    try {
+      const userData = app?.getPath ? app.getPath('userData') : '';
+      resolvedPath = path.join(userData || process.cwd(), 'notion-clone.db');
+    } catch {
+      resolvedPath = path.join(process.cwd(), 'notion-clone.db');
+    }
   }
 
-  db = new Database(resolvedPath);
+  try {
+    const dir = path.dirname(resolvedPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    db = new Database(resolvedPath);
+  } catch (err) {
+    console.warn(`[DB] Failed to open SQLite at ${resolvedPath}, falling back:`, err);
+    try {
+      const fallbackPath = path.join(process.cwd(), 'notion-clone.db');
+      db = new Database(fallbackPath);
+    } catch {
+      console.warn('[DB] Falling back to in-memory database');
+      db = new Database(':memory:');
+    }
+  }
 
-  // Enable WAL mode for high performance and concurrency
-  db.pragma('journal_mode = WAL');
-  db.pragma('synchronous = NORMAL');
+  // WAL mode for high performance
+  try {
+    db.pragma('journal_mode = WAL');
+    db.pragma('synchronous = NORMAL');
+  } catch (err) {
+    console.warn('[DB] WAL pragma not applicable:', err);
+  }
 
   // Create pages table
   db.exec(`
