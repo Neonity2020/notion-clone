@@ -17,6 +17,20 @@ if (app) {
 
 let mainWindow: BrowserWindow | null = null;
 
+function getPreloadPath(): string {
+  const candidates = [
+    path.join(__dirname, '../dist/preload.js'),
+    path.join(__dirname, 'dist/preload.js'),
+    path.join(__dirname, 'preload.js'),
+    path.join(app.getAppPath(), 'dist/preload.js'),
+    path.join(app.getAppPath(), 'apps/desktop/dist/preload.js'),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return path.join(__dirname, 'preload.js');
+}
+
 function checkDevServer(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     const req = http.get(url, (res) => {
@@ -44,11 +58,19 @@ async function createWindow() {
     backgroundColor: '#ffffff',
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: getPreloadPath(),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
     },
+  });
+
+  mainWindow.webContents.on('preload-error', (event, preloadPath, error) => {
+    console.error('PRELOAD_ERROR at', preloadPath, error);
+  });
+
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log('[Renderer Console]', message);
   });
 
   mainWindow.once('ready-to-show', () => {
