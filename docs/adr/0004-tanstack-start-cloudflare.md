@@ -22,8 +22,20 @@ The existing editor stays client-side. SSR sends an accessible workspace skeleto
 Clerk loading, lazy editor loading and initial database reads retain that placeholder.
 Reduced-motion preferences disable the pulse. Data loading failures offer retry;
 failed saves keep dirty data and retry. Writes are serialized to prevent local
-out-of-order saves. Cross-device simultaneous edits still use last-write-wins;
-this is not collaborative CRDT editing.
+out-of-order saves.
+
+Cross-device edits use per-Page optimistic concurrency, not collaborative CRDT
+editing. Each row has a `revision`; the client sends the revision it last read and
+the server only writes or deletes when the stored revision still matches (a single
+conditional upsert with `RETURNING`). On conflict the stored Page wins in place and
+the local version is kept as a new "（冲突副本）" Page, so no edit is silently lost.
+Deleting a Page that another device edited restores the edited Page. Editing a Page
+another device deleted recreates it.
+
+A serialized Page is capped at 1.8 MB (`MAX_PAGE_BYTES`) to stay under D1's 2 MB
+row limit. The client skips oversized Pages without retry loops and tells the user;
+the server rejects them as a second line of defense. Cross-tab updates fetch only
+the changed Pages (`getPages`).
 
 ## Data migration and limits
 

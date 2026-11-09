@@ -393,5 +393,6 @@ kbd { font-family: var(--font); font-size: 11px; color: var(--muted); margin-lef
 .auth-screen { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
 .account-control { position: fixed; right: 16px; bottom: 16px; z-index: 20; }
 .save-error { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 8px 16px; background: var(--bg); color: var(--danger); box-shadow: var(--shadow); z-index: 20; }
+.save-error.conflict-notice { display: flex; align-items: center; gap: 12px; color: var(--text); max-width: min(720px, calc(100vw - 32px)); }
 @media (max-width: 640px) { .app-skeleton .sidebar { display: none; } .app-skeleton .page { padding: 32px 24px; } }
 @media (prefers-reduced-motion: reduce) { [data-slot="skeleton"] { animation: none; } }
