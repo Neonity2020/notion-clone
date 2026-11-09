@@ -1,3 +1,4 @@
+import { storageKey } from '../lib/storage-scope';
 import { create } from 'zustand';
 import { useStore } from '../store';
 import { isConfigured, loadSettings, type ChatMessage } from './llm';
@@ -16,7 +17,7 @@ interface Saved {
 
 function loadChat(): Saved {
   try {
-    const s = JSON.parse(localStorage.getItem(CHAT_KEY) || 'null');
+    const s = JSON.parse(localStorage.getItem(storageKey(CHAT_KEY)) || 'null');
     if (s && Array.isArray(s.items)) return s;
   } catch {}
   return { items: [], history: [] };
@@ -25,7 +26,7 @@ function loadChat(): Saved {
 function persistChat(items: UIItem[], history: ChatMessage[]) {
   const clean = items.map((it) => (it.kind === 'assistant' ? { ...it, undo: undefined, streaming: false } : it));
   try {
-    localStorage.setItem(CHAT_KEY, JSON.stringify({ items: clean.slice(-100), history: history.slice(-200) }));
+    localStorage.setItem(storageKey(CHAT_KEY), JSON.stringify({ items: clean.slice(-100), history: history.slice(-200) }));
   } catch {}
 }
 
@@ -71,14 +72,14 @@ export const useChatStore = create<ChatState>()((set, get) => {
   return {
     items: initial.items,
     history: initial.history,
-    mode: ((typeof localStorage !== 'undefined' && localStorage.getItem(MODE_KEY)) as AgentMode) || 'agent',
+    mode: ((typeof localStorage !== 'undefined' && localStorage.getItem(storageKey(MODE_KEY))) as AgentMode) || 'agent',
     running: false,
     showSettings: false,
     abortCtrl: null,
 
     setMode(mode) {
       try {
-        localStorage.setItem(MODE_KEY, mode);
+        localStorage.setItem(storageKey(MODE_KEY), mode);
       } catch {}
       set({ mode });
     },
@@ -101,6 +102,7 @@ export const useChatStore = create<ChatState>()((set, get) => {
       const aid = uid('a_');
       const history = sanitize([...prevHistory, userMsg]);
       const ctrl = new AbortController();
+      const sessionKey = storageKey(CHAT_KEY);
 
       set((s) => {
         const items: UIItem[] = [
@@ -138,6 +140,7 @@ export const useChatStore = create<ChatState>()((set, get) => {
       } catch (e) {
         if ((e as Error).name !== 'AbortError') error = (e as Error).message;
       } finally {
+        if (sessionKey !== storageKey(CHAT_KEY)) return;
         const undoPages: Record<string, PageMap[string] | undefined> = {};
         ctx.touchedPages.forEach((id) => (undoPages[id] = before[id]));
         const nextHistory = sanitize([...history, ...sink]);
@@ -198,4 +201,9 @@ export function prettyJSON(s: string) {
   } catch {
     return s;
   }
+}
+
+export function resetChatScope() {
+  useChatStore.getState().stop();
+  useChatStore.setState({ ...loadChat(), running: false, abortCtrl: null, showSettings: false, mode: 'agent' });
 }

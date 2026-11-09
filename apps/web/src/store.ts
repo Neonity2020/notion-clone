@@ -1,3 +1,4 @@
+import { storageKey } from './lib/storage-scope';
 import { create } from 'zustand';
 import type { Block, BlockType, Page, PageMap } from './types';
 import { uid } from './lib/id';
@@ -99,7 +100,7 @@ export const useStore = create<State>()((set, get) => ({
     for (const p of list) pages[p.id] = p;
     let current: string | null = null;
     try {
-      current = localStorage.getItem(LAST_PAGE_KEY);
+      current = localStorage.getItem(storageKey(LAST_PAGE_KEY));
     } catch {}
     if (!current || !pages[current]) current = childrenOf(pages, null)[0]?.id ?? null;
     set({ pages, loaded: true, currentPageId: current });
@@ -176,7 +177,7 @@ export const useStore = create<State>()((set, get) => ({
 
   openPage(id) {
     try {
-      if (id) localStorage.setItem(LAST_PAGE_KEY, id);
+      if (id) localStorage.setItem(storageKey(LAST_PAGE_KEY), id);
     } catch {}
     set({ currentPageId: id, mainView: 'page' });
   },

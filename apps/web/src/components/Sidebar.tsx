@@ -83,7 +83,7 @@ function TreeItem({ page, depth, pages }: { page: Page; depth: number; pages: Pa
   );
 }
 
-export function Sidebar({ onCollapse }: { onCollapse(): void }) {
+export function Sidebar({ onCollapse, storage = 'local' }: { onCollapse(): void; storage?: 'local' | 'cloud' }) {
   const pages = useStore((s) => s.pages);
   const mainView = useStore((s) => s.mainView);
   const [q, setQ] = useState('');
@@ -205,8 +205,8 @@ export function Sidebar({ onCollapse }: { onCollapse(): void }) {
           }}
         />
       </div>
-      <div className="local-badge" title="数据仅保存在本机浏览器 IndexedDB">
-        ● 本地存储 · {Object.keys(pages).length} 个页面
+      <div className="local-badge" title={storage === 'cloud' ? '笔记保存在当前账户的云端工作区' : '数据保存在本机'}>
+        ● {storage === 'cloud' ? '云端工作区' : '本地存储'} · {Object.keys(pages).length} 个页面
       </div>
     </nav>
   );

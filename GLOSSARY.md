@@ -37,8 +37,8 @@ The block-based text editor system (`editor/`):
 
 ### Persist
 The local storage layer (`persist.ts` + `lib/db.ts`) that:
-- Hydrates the store from localStorage
-- Syncs to remote (via `applyRemote`)
+- Hydrates the store from Cloudflare D1 (Web) or SQLite/IndexedDB (local renderer)
+- Serializes saves through a persistence adapter and applies same-account tab updates via `applyRemote`
 
 ### Desktop
 The Electron wrapper (`apps/desktop/`):

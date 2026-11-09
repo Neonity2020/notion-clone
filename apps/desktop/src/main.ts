@@ -98,11 +98,11 @@ async function createWindow() {
   }
 
   if (!loaded) {
-    // Try multiple possible paths to web/dist/index.html (dev vs packaged)
+    // Try multiple possible paths to web/dist-desktop/desktop.html (dev vs packaged)
     const candidates = [
-      path.join(__dirname, '../../web/dist/index.html'),
-      path.join(__dirname, '../web/dist/index.html'),
-      path.join(app.getAppPath(), 'apps/web/dist/index.html'),
+      path.join(__dirname, '../../web/dist-desktop/desktop.html'),
+      path.join(__dirname, '../web/dist-desktop/desktop.html'),
+      path.join(app.getAppPath(), 'apps/web/dist-desktop/desktop.html'),
       path.join(app.getAppPath(), 'dist/index.html'),
     ];
 

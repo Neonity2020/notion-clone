@@ -1,6 +1,6 @@
 # 0001. Use Bun Monorepo with Vite + Electron
 
-- **Status**: Accepted
+- **Status**: Partially superseded by [ADR-0004](0004-tanstack-start-cloudflare.md) for Web build and persistence
 - **Date**: 2025-01-01
 - **Deciders**: Development Team
 

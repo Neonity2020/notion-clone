@@ -34,7 +34,7 @@
     },
     "files": [
       "dist/**/*",
-      "../web/dist/**/*"
+      "../web/dist-desktop/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",

@@ -1,3 +1,4 @@
+import { storageKey } from '../lib/storage-scope';
 /** Minimal OpenAI-compatible chat-completions client with streaming + tool calls. */
 import { createAssistantMessageEventStream, type AssistantMessage, type Usage } from '@earendil-works/pi-ai';
 import type { StreamFn } from '@earendil-works/pi-agent-core';
@@ -53,14 +54,14 @@ export const PRESETS: { name: string; baseURL: string; model: string }[] = [
 
 export function loadSettings(): LLMSettings {
   try {
-    const s = JSON.parse(localStorage.getItem(KEY) || 'null');
+    const s = JSON.parse(localStorage.getItem(storageKey(KEY)) || 'null');
     if (s && s.baseURL) return s;
   } catch {}
   return { baseURL: PRESETS[0].baseURL, apiKey: '', model: PRESETS[0].model };
 }
 
 export function saveSettings(s: LLMSettings) {
-  localStorage.setItem(KEY, JSON.stringify(s));
+  localStorage.setItem(storageKey(KEY), JSON.stringify(s));
 }
 
 export function isConfigured(s: LLMSettings) {
@@ -130,7 +131,7 @@ export async function chat(opts: {
   const ctype = res.headers.get('content-type') || '';
   if (!ctype.includes('text/event-stream') || !res.body) {
     // non-streaming fallback
-    const json = await res.json();
+    const json = await res.json() as { choices?: { message?: { content?: string; tool_calls?: ToolCall[] } }[] };
     const msg = json.choices?.[0]?.message ?? {};
     const content = msg.content ?? '';
     if (content) onDelta?.(content);

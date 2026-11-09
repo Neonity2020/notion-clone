@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { AppSkeleton } from './components/AppSkeleton';
 import { useStore } from './store';
 import { Sidebar } from './components/Sidebar';
 import { PageView } from './components/PageView';
 import { AgentPanel } from './agent/AgentPanel';
 import { AgentHome } from './agent/AgentHome';
 
-export function App() {
+export function App({ storage = 'local' }: { storage?: 'local' | 'cloud' }) {
   const loaded = useStore((s) => s.loaded);
   const mainView = useStore((s) => s.mainView);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('nc:sidebar') === 'collapsed');
@@ -59,11 +60,11 @@ export function App() {
     return cleanup;
   }, []);
 
-  if (!loaded) return <div className="loading">加载中…</div>;
+  if (!loaded) return <AppSkeleton />;
 
   return (
     <div className={`app${collapsed ? ' sidebar-collapsed' : ''}`}>
-      {!collapsed && <Sidebar onCollapse={() => setCollapsed(true)} />}
+      {!collapsed && <Sidebar storage={storage} onCollapse={() => setCollapsed(true)} />}
       {mainView === 'agent-home' ? (
         <AgentHome sidebarCollapsed={collapsed} onExpandSidebar={() => setCollapsed(false)} />
       ) : (

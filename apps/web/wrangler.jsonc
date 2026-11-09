@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "notion-clone",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-11-08",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "account_id": "68ac5813b87f50bab09100f18d128adf",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "notion-clone",
+      "database_id": "389e8aed-04c3-4b29-bdad-71f697432634",
+      "migrations_dir": "../../packages/db/migrations"
+    }
+  ]
+}

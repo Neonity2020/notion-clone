@@ -21,7 +21,7 @@ Single-context layout: `GLOSSARY.md` at the root + `docs/adr/` for architecture 
 ```
 notion-clone/
 ├── apps/
-│   ├── web/          # Vite + React web app
+│   ├── web/          # TanStack Start + React web app
 │   └── desktop/     # Electron desktop wrapper
 ├── docs/
 │   ├── agents/       # Agent configuration
@@ -32,10 +32,10 @@ notion-clone/
 ### Key Technologies
 
 - **Bun**: Package manager + runtime
-- **React 18 + TypeScript**: UI framework
+- **React 19 + TypeScript**: UI framework
 - **Zustand**: State management
-- **Electron 33**: Desktop wrapper
-- **Vite 5**: Web build tool
+- **Electron 45**: Desktop wrapper
+- **Vite 8**: Web build tool
 
 ### Important Files
 
@@ -44,3 +44,10 @@ notion-clone/
 - `apps/web/src/store.ts`: Zustand store (core state)
 - `apps/web/src/editor/`: Block editor system
 - `apps/web/src/agent/`: AI agent integration
+
+### Web platform
+
+- TanStack Start + shadcn/ui + Tailwind 4 in `apps/web`.
+- Clerk authentication; Drizzle + Cloudflare D1 in `packages/db`; shared types in `packages/shared`.
+- Cloudflare Workers deployment. Read ADR-0004 for server boundaries and desktop compatibility.
+- Run `bun run test`, `bun run typecheck`, and `bun run build` after architectural changes.

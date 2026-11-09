@@ -1,66 +1,85 @@
 import { useStore } from './store';
-import { loadAllPages, loadPages, writePages } from './lib/db';
-import type { PageMap } from './types';
+import * as local from './lib/db';
+import type { Page, PageMap } from './types';
 import { seedPages } from './seed';
 
-/**
- * Local-first persistence: every change in the in-memory store is diffed by
- * reference (pages are immutable) and flushed to IndexedDB on a short debounce.
- * Other open tabs are notified via BroadcastChannel and reload the changed pages.
- */
-export async function initPersistence() {
-  let pages = await loadAllPages();
-  if (pages.length === 0) {
+export interface PersistenceAdapter {
+  loadAllPages(): Promise<Page[]>;
+  loadPages(ids: string[]): Promise<(Page | undefined)[]>;
+  writePages(put: Page[], del: string[]): Promise<void>;
+}
+
+/** Serialize writes; only acknowledge a snapshot after storage accepts it. */
+export async function initPersistence(adapter: PersistenceAdapter = local, options: {
+  channel?: string; signal?: AbortSignal; onSaveError?: (failed: boolean) => void;
+} = {}) {
+  let pages = await adapter.loadAllPages();
+  if (options.signal?.aborted) return () => {};
+  if (!pages.length) {
     pages = seedPages();
-    await writePages(pages, []);
+    await adapter.writePages(pages, []);
   }
+  if (options.signal?.aborted) return () => {};
   useStore.getState().hydrate(pages);
-
-  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('notion-clone') : null;
-  let applyingRemote = false;
+  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(options.channel ?? 'notion-clone') : null;
   let lastSaved: PageMap = useStore.getState().pages;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let saving = false;
+  let stopped = false;
+  let applyingRemote = false;
+  const dirty = () => useStore.getState().pages !== lastSaved;
+  const schedule = (delay = 250) => {
+    if (stopped) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => void flush(), delay);
+  };
   const flush = async () => {
-    timer = null;
-    const cur = useStore.getState().pages;
-    const prev = lastSaved;
-    lastSaved = cur;
-    const put = Object.values(cur).filter((p) => prev[p.id] !== p);
-    const del = Object.keys(prev).filter((id) => !cur[id]);
-    if (!put.length && !del.length) return;
+    if (saving || stopped) return;
+    clearTimeout(timer);
+    timer = undefined;
+    const current = useStore.getState().pages;
+    const put = Object.values(current).filter((p) => lastSaved[p.id] !== p);
+    const del = Object.keys(lastSaved).filter((id) => !current[id]);
+    if (!put.length && !del.length) { lastSaved = current; return; }
+    saving = true;
+    let failed = false;
     try {
-      await writePages(put, del);
-      channel?.postMessage({ put: put.map((p) => p.id), del });
-    } catch (e) {
-      console.error('保存失败', e);
+      await adapter.writePages(put, del);
+      lastSaved = current;
+      if (!stopped) { options.onSaveError?.(false); channel?.postMessage({ put: put.map((p) => p.id), del }); }
+    } catch {
+      failed = true;
+      if (!stopped) options.onSaveError?.(true);
+    } finally {
+      saving = false;
+      if (!stopped && dirty()) schedule(failed ? 3000 : 250);
     }
   };
-
-  useStore.subscribe((state, prevState) => {
-    if (state.pages === prevState.pages) return;
-    if (applyingRemote) {
-      lastSaved = state.pages;
-      return;
-    }
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(flush, 250);
+  const unsubscribe = useStore.subscribe((state, prev) => {
+    if (state.pages !== prev.pages && !applyingRemote) schedule();
   });
-
-  channel?.addEventListener('message', async (ev: MessageEvent<{ put: string[]; del: string[] }>) => {
-    const loaded = await loadPages(ev.data.put);
-    applyingRemote = true;
+  channel?.addEventListener('message', async (event: MessageEvent<{ put: string[]; del: string[] }>) => {
+    if (dirty() || saving || stopped) return;
     try {
-      useStore.getState().applyRemote(loaded.filter((p): p is NonNullable<typeof p> => !!p), ev.data.del);
-    } finally {
-      applyingRemote = false;
-    }
+      const loaded = await adapter.loadPages(event.data.put);
+      if (dirty() || saving || stopped) return;
+      applyingRemote = true;
+      useStore.getState().applyRemote(loaded.filter((p): p is Page => !!p), event.data.del);
+      lastSaved = useStore.getState().pages;
+    } catch { /* A later notification retries remote reads. */ }
+    finally { applyingRemote = false; }
   });
-
-  window.addEventListener('beforeunload', () => {
-    if (timer) {
-      clearTimeout(timer);
-      void flush();
-    }
-  });
+  const beforeUnload = (event: BeforeUnloadEvent) => {
+    if (dirty() || saving) { void flush(); event.preventDefault(); event.returnValue = ''; }
+  };
+  const visibility = () => { if (document.visibilityState === 'hidden') void flush(); };
+  window.addEventListener('beforeunload', beforeUnload);
+  document.addEventListener('visibilitychange', visibility);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    unsubscribe(); channel?.close();
+    window.removeEventListener('beforeunload', beforeUnload);
+    document.removeEventListener('visibilitychange', visibility);
+  };
 }

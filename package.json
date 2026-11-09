@@ -2,16 +2,26 @@
   "name": "notion-clone-monorepo",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "dev": "bun --filter @notion-clone/web dev",
-    "dev:desktop": "bun run build:web && bun --filter @notion-clone/desktop dev",
-    "build": "bun run build:web && bun run build:desktop",
+    "dev:desktop": "bun run build:renderer && bun --filter @notion-clone/desktop dev",
+    "build": "bun run build:web && bun run build:renderer && bun run build:desktop",
     "build:web": "bun --filter @notion-clone/web build",
     "build:desktop": "bun --filter @notion-clone/desktop build",
-    "package:desktop": "bun run build && bun --filter @notion-clone/desktop package",
+    "package:desktop": "bun run build:renderer && bun run build:desktop && bun --filter @notion-clone/desktop package",
     "test": "bun --filter @notion-clone/web test",
-    "typecheck": "bun --filter @notion-clone/web typecheck && bun --filter @notion-clone/desktop typecheck"
+    "typecheck": "bun --filter @notion-clone/web typecheck && bun --filter @notion-clone/desktop typecheck",
+    "build:renderer": "bun --filter @notion-clone/web build:desktop",
+    "db:generate": "bun --filter @notion-clone/db generate",
+    "db:migrate": "bun --filter @notion-clone/web db:migrate",
+    "deploy": "bun --filter @notion-clone/web deploy",
+    "db:migrate:remote": "bun --filter @notion-clone/web db:migrate:remote"
+  },
+  "packageManager": "bun@1.3.14",
+  "engines": {
+    "node": ">=22.12.0"
   }
 }
