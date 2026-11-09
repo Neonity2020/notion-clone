@@ -106,6 +106,15 @@ kbd { font-family: var(--font); font-size: 11px; color: var(--muted); margin-lef
 .subpage-link span { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
 .subpage-link:hover { background: var(--bg-hover); }
 
+/* ---------- Wiki Links & Backlinks ---------- */
+.wikilink { color: var(--accent, #6c5ce7); text-decoration: none; border-bottom: 1.5px solid color-mix(in srgb, var(--accent, #6c5ce7) 40%, transparent); cursor: pointer; padding: 0 1px; border-radius: 3px; transition: background 0.15s; }
+.wikilink:hover { background: color-mix(in srgb, var(--accent, #6c5ce7) 12%, transparent); }
+.backlinks { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 2px; }
+.backlinks-header { margin-bottom: 4px; }
+.backlink-item { text-align: left; padding: 4px 6px; border-radius: 4px; display: flex; align-items: center; gap: 6px; }
+.backlink-item span { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+.backlink-item:hover { background: var(--bg-hover); }
+
 /* ---------- Editor ---------- */
 .editor { position: relative; }
 .editor-tail { min-height: 80px; cursor: text; }
@@ -151,9 +160,11 @@ kbd { font-family: var(--font); font-size: 11px; color: var(--muted); margin-lef
 .popover { position: fixed; background: var(--bg); border-radius: 8px; box-shadow: var(--shadow); z-index: 50; }
 .menu-backdrop { position: fixed; inset: 0; z-index: 40; }
 .slash-menu, .block-menu { width: 250px; max-height: 330px; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; }
+.wiki-menu { width: 280px; max-height: 300px; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; }
 .block-menu { position: absolute; left: 0; top: 28px; width: 200px; }
-.slash-menu button, .block-menu button { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 5px; text-align: left; font-size: 14px; }
-.slash-menu button.active, .block-menu button:hover { background: var(--bg-hover); }
+.slash-menu button, .block-menu button, .wiki-menu button { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 5px; text-align: left; font-size: 14px; }
+.slash-menu button.active, .block-menu button:hover, .wiki-menu button.active, .wiki-menu button:hover { background: var(--bg-hover); }
+.wiki-menu .wiki-create { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; color: var(--muted); }
 .menu-icon { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 5px; display: grid; place-items: center; font-size: 12px; font-weight: 600; flex-shrink: 0; background: var(--bg); }
 .menu-label { flex: 1; }
 .menu-hint { color: var(--muted); font-size: 12px; font-family: var(--mono); }

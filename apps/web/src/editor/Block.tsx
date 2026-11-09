@@ -100,6 +100,7 @@ function BlockViewInner({ block, index, number }: Props) {
   const onBlur = () => {
     setFocused(false);
     ed.closeSlash();
+    ed.closeWiki();
   };
 
   const onInput = () => {
@@ -126,7 +127,10 @@ function BlockViewInner({ block, index, number }: Props) {
       }
     }
     st().updateBlock(pageId, block.id, { text });
-    if (!composing.current) ed.checkSlash(block.id, el);
+    if (!composing.current) {
+      ed.checkSlash(block.id, el);
+      ed.checkWiki(block.id, el);
+    }
   };
 
   const splitAt = (offset: number) => {
@@ -156,6 +160,7 @@ function BlockViewInner({ block, index, number }: Props) {
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing || composing.current) return;
     if (ed.slashKeyDown(e)) return;
+    if (ed.wikiKeyDown(e)) return;
     const el = ref.current!;
     const mod = e.metaKey || e.ctrlKey;
     const all = blocks();
@@ -329,6 +334,24 @@ function BlockViewInner({ block, index, number }: Props) {
   };
 
   const onClickRendered = (e: React.MouseEvent) => {
+    // Wiki-link click: navigate or create
+    const wikiA = (e.target as HTMLElement).closest('a.wikilink') as HTMLAnchorElement | null;
+    if (wikiA) {
+      e.preventDefault();
+      const target = wikiA.getAttribute('data-target');
+      if (!target) return;
+      const state = useStore.getState();
+      const existing = Object.values(state.pages).find(
+        (p) => p.title.trim().toLowerCase() === target.trim().toLowerCase(),
+      );
+      if (existing) {
+        state.openPage(existing.id);
+      } else if (window.confirm(`页面「${target}」不存在，是否创建？`)) {
+        const id = state.createPage({ title: target });
+        state.openPage(id);
+      }
+      return;
+    }
     const a = (e.target as HTMLElement).closest('a');
     if (a && (e.metaKey || e.ctrlKey || !focused)) {
       e.preventDefault();

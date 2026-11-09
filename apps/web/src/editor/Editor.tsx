@@ -3,9 +3,10 @@ import type { BlockType, Page } from '../types';
 import { useStore, BLOCK_TYPES } from '../store';
 import { newBlock } from '../lib/markdown';
 import { BlockView } from './Block';
-import { EditorContext, type EditorCtx, type SlashState } from './context';
+import { EditorContext, type EditorCtx, type SlashState, type WikiState } from './context';
 import { getCaretOffset, setCaretOffset } from './caret';
 import { SelectionAI } from '../agent/SelectionAI';
+import { searchPages } from '../lib/wikilink';
 
 function filterTypes(q: string) {
   const s = q.toLowerCase().trim();
@@ -28,6 +29,9 @@ export function Editor({ page }: { page: Page }) {
   const [slash, setSlash] = useState<SlashState | null>(null);
   const slashRef = useRef<SlashState | null>(null);
   slashRef.current = slash;
+  const [wiki, setWiki] = useState<WikiState | null>(null);
+  const wikiRef = useRef<WikiState | null>(null);
+  wikiRef.current = wiki;
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<EditorCtx['dropTarget']>(null);
   const pageId = page.id;
@@ -70,6 +74,28 @@ export function Editor({ page }: { page: Page }) {
       }
     },
     [pageId, applyType],
+  );
+
+  const wikiItems = wiki ? searchPages(useStore.getState().pages, wiki.query) : [];
+
+  const selectWiki = useCallback(
+    (title: string) => {
+      const cur = wikiRef.current;
+      if (!cur) return;
+      setWiki(null);
+      const s = useStore.getState();
+      const block = s.pages[pageId]?.blocks.find((b) => b.id === cur.blockId);
+      if (!block) return;
+      const before = block.text.slice(0, cur.start);
+      const after = block.text.slice(cur.start + 2 + cur.query.length); // skip [[ and query up to caret
+      const insertion = `[[${title}]]`;
+      const newText = before + insertion + after;
+      const el = document.querySelector<HTMLElement>(`[data-block-id="${cur.blockId}"]`);
+      if (el) el.textContent = newText;
+      s.updateBlock(pageId, cur.blockId, { text: newText });
+      s.requestFocus(cur.blockId, before.length + insertion.length);
+    },
+    [pageId],
   );
 
   const ctx: EditorCtx = useMemo(
@@ -127,8 +153,50 @@ export function Editor({ page }: { page: Page }) {
         }
         return false;
       },
+      checkWiki(blockId, el) {
+        const text = el.textContent ?? '';
+        const c = getCaretOffset(el);
+        if (c === null) return;
+        const cur = wikiRef.current;
+        if (cur && cur.blockId === blockId) {
+          // Still inside [[ ... ? Check that we haven't typed ]]
+          const query = text.slice(cur.start + 2, c);
+          if (/\n/.test(query) || query.includes(']') || query.length > 60) return setWiki(null);
+          setWiki({ ...cur, query, index: 0 });
+          return;
+        }
+        // Detect the start of [[ at the caret (just typed the second [)
+        if (c >= 2 && text[c - 1] === '[' && text[c - 2] === '[') {
+          setWiki({ blockId, start: c - 2, query: '', index: 0, ...caretRect() });
+        } else if (cur) setWiki(null);
+      },
+      wikiKeyDown(e) {
+        const cur = wikiRef.current;
+        if (!cur) return false;
+        const items = searchPages(useStore.getState().pages, cur.query);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          const d = e.key === 'ArrowDown' ? 1 : -1;
+          setWiki({ ...cur, index: (cur.index + d + items.length) % items.length });
+          return true;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          const item = items[cur.index];
+          if (item) selectWiki(item.title || item.id);
+          else if (cur.query.trim()) selectWiki(cur.query.trim());
+          return true;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setWiki(null);
+          return true;
+        }
+        return false;
+      },
+      closeWiki: () => wikiRef.current && setWiki(null),
     }),
-    [pageId, dragId, dropTarget, applyType, selectSlash],
+    [pageId, dragId, dropTarget, applyType, selectSlash, selectWiki],
   );
 
   // numbered list counters
@@ -193,6 +261,42 @@ export function Editor({ page }: { page: Page }) {
               <span className="menu-hint">{t.hint}</span>
             </button>
           ))}
+        </div>
+      )}
+      {wiki && (
+        <div
+          className="popover wiki-menu"
+          style={{ left: Math.min(wiki.x, window.innerWidth - 280), top: Math.min(wiki.y, window.innerHeight - 320) }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <div className="menu-sep">🔗 链接到页面</div>
+          {wikiItems.length > 0 ? (
+            wikiItems.map((p, i) => (
+              <button
+                key={p.id}
+                className={i === wiki.index ? 'active' : ''}
+                onMouseEnter={() => setWiki({ ...wiki, index: i })}
+                onClick={() => selectWiki(p.title || p.id)}
+                ref={(el) => {
+                  if (el && i === wiki.index) el.scrollIntoView({ block: 'nearest' });
+                }}
+              >
+                <span className="menu-icon">{p.icon}</span>
+                <span className="menu-label">{p.title || '无标题'}</span>
+              </button>
+            ))
+          ) : (
+            <button className="active" onClick={() => selectWiki(wiki.query.trim() || '新页面')}>
+              <span className="menu-icon">➕</span>
+              <span className="menu-label">创建「{wiki.query.trim() || '新页面'}」</span>
+            </button>
+          )}
+          {wiki.query.trim() && wikiItems.length > 0 && (
+            <button className="wiki-create" onClick={() => selectWiki(wiki.query.trim())}>
+              <span className="menu-icon">➕</span>
+              <span className="menu-label">创建「{wiki.query.trim()}」</span>
+            </button>
+          )}
         </div>
       )}
       <SelectionAI pageId={pageId} />

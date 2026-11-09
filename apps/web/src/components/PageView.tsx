@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { useStore, pagePath, childrenOf } from '../store';
 import { Editor } from '../editor/Editor';
 import { pageToMarkdown, newBlock } from '../lib/markdown';
+import { getBacklinks } from '../lib/wikilink';
 
 const EMOJIS = '📄📝📒📓📔📕📗📘📙📚🗒️🗂️📁📌📍✅☑️💡🔥⭐️🌟✨🎯🚀🧠💼🏠🎨🎵📷🍀🌈☀️🌙⚡️🧪🔧🛠️💻📱🗓️⏰💰📈📊🧾🎓✈️🍔☕️❤️😀🤖'.match(
   /\p{Extended_Pictographic}\uFE0F?/gu,
@@ -154,8 +155,27 @@ export function PageView({ sidebarCollapsed, onExpandSidebar }: { sidebarCollaps
               ))}
             </div>
           )}
+          <Backlinks pageId={page.id} />
         </div>
       </div>
     </main>
+  );
+}
+
+function Backlinks({ pageId }: { pageId: string }) {
+  const pages = useStore((s) => s.pages);
+  const page = pages[pageId];
+  if (!page) return null;
+  const backlinks = getBacklinks(pages, page);
+  if (backlinks.length === 0) return null;
+  return (
+    <div className="backlinks">
+      <div className="backlinks-header muted small">🔗 反向链接（{backlinks.length}）</div>
+      {backlinks.map((p) => (
+        <button key={p.id} className="backlink-item" onClick={() => useStore.getState().openPage(p.id)}>
+          {p.icon} <span>{p.title || '无标题'}</span>
+        </button>
+      ))}
+    </div>
   );
 }

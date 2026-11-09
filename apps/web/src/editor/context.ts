@@ -10,6 +10,16 @@ export interface SlashState {
   y: number;
 }
 
+export interface WikiState {
+  blockId: string;
+  /** offset of the first `[` in the raw text */
+  start: number;
+  query: string;
+  index: number;
+  x: number;
+  y: number;
+}
+
 export interface EditorCtx {
   pageId: string;
   checkSlash(blockId: string, el: HTMLElement): void;
@@ -17,6 +27,9 @@ export interface EditorCtx {
   closeSlash(): void;
   openSlashAt(blockId: string): void;
   applyType(blockId: string, type: BlockType): void;
+  checkWiki(blockId: string, el: HTMLElement): void;
+  wikiKeyDown(e: React.KeyboardEvent): boolean;
+  closeWiki(): void;
   dragId: string | null;
   setDragId(id: string | null): void;
   dropTarget: { id: string; pos: 'before' | 'after' } | null;

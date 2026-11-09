@@ -1,17 +1,20 @@
 /**
  * Tiny inline-markdown renderer used when a block is not being edited.
- * Supported: **bold**, *italic*, `code`, ~~strike~~, [text](url).
+ * Supported: **bold**, *italic*, `code`, ~~strike~~, [text](url), [[wiki link]], [[target|alias]].
  * Each segment remembers where its content starts in the raw text so the
  * caret position can be mapped from rendered text back to raw text on focus.
  */
 export interface Segment {
-  kind: 'text' | 'bold' | 'italic' | 'code' | 'strike' | 'link';
+  kind: 'text' | 'bold' | 'italic' | 'code' | 'strike' | 'link' | 'wikilink';
   text: string;
   rawStart: number;
   url?: string;
+  /** For wikilink: the target page title */
+  target?: string;
 }
 
 const PATTERNS: { kind: Segment['kind']; re: RegExp; contentOffset: number }[] = [
+  { kind: 'wikilink', re: /^\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/, contentOffset: 2 },
   { kind: 'code', re: /^`([^`\n]+)`/, contentOffset: 1 },
   { kind: 'bold', re: /^\*\*([^*\n]+?)\*\*/, contentOffset: 2 },
   { kind: 'strike', re: /^~~([^~\n]+?)~~/, contentOffset: 2 },
@@ -37,7 +40,13 @@ export function parseInline(src: string): Segment[] {
         const m = rest.match(p.re);
         if (m) {
           flush();
-          segs.push({ kind: p.kind, text: m[1], rawStart: i + p.contentOffset, url: m[2] });
+          if (p.kind === 'wikilink') {
+            const target = m[1];
+            const display = m[2] ?? m[1];
+            segs.push({ kind: 'wikilink', text: display, rawStart: i + p.contentOffset, target });
+          } else {
+            segs.push({ kind: p.kind, text: m[1], rawStart: i + p.contentOffset, url: m[2] });
+          }
           i += m[0].length;
           bufStart = i;
           matched = true;
@@ -84,6 +93,7 @@ export function renderInlineHTML(src: string): string {
         case 'code': return `<code class="inline-code">${t}</code>`;
         case 'strike': return `<s>${t}</s>`;
         case 'link': return `<a href="${esc(safeUrl(s.url!))}" target="_blank" rel="noopener noreferrer">${t}</a>`;
+        case 'wikilink': return `<a class="wikilink" data-target="${esc(s.target!)}" href="#" title="跳转到页面: ${esc(s.target!)}">${t}</a>`;
         default: return t;
       }
     })

@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { blocksToMarkdown, markdownToBlocks } from '../lib/markdown';
 import { displayToRaw, parseInline, renderInlineHTML } from '../lib/inline';
+import { parseWikiLinks, hasWikiLink, findPageByTitle, getBacklinks, searchPages, getAllWikiLinkTargets } from '../lib/wikilink';
 import { useStore } from '../store';
 import { runTool, toolDefs, createPiTools } from '../agent/tools';
 import { Agent } from '@earendil-works/pi-agent-core';
@@ -40,6 +41,79 @@ describe('inline', () => {
   it('escapes html and unsafe urls', () => {
     expect(renderInlineHTML('<b> [x](javascript:alert(1))')).not.toContain('<b>');
     expect(renderInlineHTML('[x](javascript:alert)')).toContain('href="#"');
+  });
+});
+
+describe('wiki links', () => {
+  it('parses [[target]] and [[target|alias]]', () => {
+    const refs = parseWikiLinks('see [[My Page]] and [[Other|display text]] here');
+    expect(refs).toEqual([
+      { target: 'My Page', display: 'My Page' },
+      { target: 'Other', display: 'display text' },
+    ]);
+    expect(hasWikiLink('no links here')).toBe(false);
+    expect(hasWikiLink('has [[link]]')).toBe(true);
+  });
+
+  it('parses wiki links in inline segments', () => {
+    const segs = parseInline('go to [[Home]] now');
+    expect(segs.map((s) => s.kind)).toEqual(['text', 'wikilink', 'text']);
+    expect(segs[1].text).toBe('Home');
+    expect(segs[1].target).toBe('Home');
+  });
+
+  it('renders wiki link HTML with data-target', () => {
+    const html = renderInlineHTML('see [[Home|首页]]');
+    expect(html).toContain('class="wikilink"');
+    expect(html).toContain('data-target="Home"');
+    expect(html).toContain('首页');
+  });
+
+  it('renders [[target]] without alias as target text', () => {
+    const html = renderInlineHTML('[[My Page]]');
+    expect(html).toContain('>My Page</a>');
+    expect(html).toContain('data-target="My Page"');
+  });
+
+  it('finds pages by title (case-insensitive)', () => {
+    useStore.setState({ pages: {}, currentPageId: null });
+    const id = useStore.getState().createPage({ title: 'My Notes' });
+    const pages = useStore.getState().pages;
+    expect(findPageByTitle(pages, 'my notes')?.id).toBe(id);
+    expect(findPageByTitle(pages, '  My Notes  ')?.id).toBe(id);
+    expect(findPageByTitle(pages, 'missing')).toBeUndefined();
+  });
+
+  it('computes backlinks', () => {
+    useStore.setState({ pages: {}, currentPageId: null });
+    const targetId = useStore.getState().createPage({ title: 'Target' });
+    useStore.getState().createPage({ title: 'Source A', blocks: markdownToBlocks('links to [[Target]] here') });
+    useStore.getState().createPage({ title: 'Source B', blocks: markdownToBlocks('no links') });
+    useStore.getState().createPage({ title: 'Source C', blocks: markdownToBlocks('also [[target|aliased]]') });
+
+    const pages = useStore.getState().pages;
+    const target = pages[targetId];
+    const backlinks = getBacklinks(pages, target);
+    expect(backlinks.map((p) => p.title).sort()).toEqual(['Source A', 'Source C']);
+  });
+
+  it('searchPages finds matching pages', () => {
+    useStore.setState({ pages: {}, currentPageId: null });
+    useStore.getState().createPage({ title: 'Project Plan' });
+    useStore.getState().createPage({ title: 'Project Notes' });
+    useStore.getState().createPage({ title: 'Random' });
+    const pages = useStore.getState().pages;
+    expect(searchPages(pages, 'proj').map((p) => p.title).sort()).toEqual(['Project Notes', 'Project Plan']);
+    expect(searchPages(pages, 'plan').map((p) => p.title)).toEqual(['Project Plan']);
+    expect(searchPages(pages, 'zzz')).toHaveLength(0);
+  });
+
+  it('collects all wiki-link targets', () => {
+    useStore.setState({ pages: {}, currentPageId: null });
+    useStore.getState().createPage({ title: 'A', blocks: markdownToBlocks('[[X]] and [[Y]]') });
+    useStore.getState().createPage({ title: 'B', blocks: markdownToBlocks('[[X]] again') });
+    const targets = getAllWikiLinkTargets(useStore.getState().pages);
+    expect(targets.sort()).toEqual(['X', 'Y']);
   });
 });
 
