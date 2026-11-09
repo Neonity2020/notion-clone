@@ -25,6 +25,7 @@
       "name": "@notion-clone/web",
       "version": "0.1.0",
       "dependencies": {
+        "@clerk/localizations": "^4.24.6",
         "@clerk/tanstack-react-start": "^1.7.11",
         "@clerk/ui": "^1.42.4",
         "@earendil-works/pi-agent-core": "^1.5.0",
