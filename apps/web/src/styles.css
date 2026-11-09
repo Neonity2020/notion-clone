@@ -36,6 +36,8 @@
   --agent: #8b5cf6;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Helvetica, Arial, sans-serif;
   --mono: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* Clerk 主题把 --muted 当弱背景色用（shadcn 语义），本项目的 --muted 是文字色，这里单独纠正 */
+  --clerk-color-muted: var(--bg-hover);
   color-scheme: light;
 }
 
@@ -396,3 +398,54 @@ kbd { font-family: var(--font); font-size: 11px; color: var(--muted); margin-lef
 .save-error.conflict-notice { display: flex; align-items: center; gap: 12px; color: var(--text); max-width: min(720px, calc(100vw - 32px)); }
 @media (max-width: 640px) { .app-skeleton .sidebar { display: none; } .app-skeleton .page { padding: 32px 24px; } }
 @media (prefers-reduced-motion: reduce) { [data-slot="skeleton"] { animation: none; } }
+
+/* ---- Auth shell ---- */
+.auth-shell { min-height: 100dvh; display: flex; }
+.auth-brand {
+  width: 44%; max-width: 560px; min-width: 380px;
+  display: flex; align-items: center;
+  padding: 48px 52px;
+  background: var(--bg-side); border-right: 1px solid var(--border);
+  position: relative; overflow: hidden;
+}
+.auth-brand::before, .auth-brand::after {
+  content: ""; position: absolute; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, var(--accent-soft), transparent 70%);
+}
+.auth-brand::before { width: 420px; height: 420px; top: -160px; right: -140px; }
+.auth-brand::after { width: 360px; height: 360px; bottom: -140px; left: -120px; }
+.auth-brand-inner { position: relative; width: 100%; max-width: 380px; }
+.auth-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 650; letter-spacing: .01em; color: var(--text); }
+.auth-logo svg { width: 30px; height: 30px; border-radius: 8px; flex: none; box-shadow: 0 1px 3px rgba(15, 15, 15, .15); }
+.auth-tagline { margin: 20px 0 26px; font-size: 15px; line-height: 1.75; color: var(--muted); }
+.auth-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.auth-points li { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; line-height: 1.6; color: var(--text); }
+.auth-points .glyph { color: var(--accent); font-size: 12px; flex: none; }
+
+.auth-demo {
+  margin-top: 44px; padding: 18px 20px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 11px;
+  font-size: 12.5px;
+}
+.auth-demo-title { font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.auth-demo-line { height: 8px; border-radius: 4px; background: var(--code-bg); }
+.auth-demo-line.w-80 { width: 80%; } .auth-demo-line.w-65 { width: 65%; } .auth-demo-line.w-50 { width: 50%; }
+.auth-demo-todo { display: flex; align-items: center; gap: 8px; }
+.auth-demo-todo .tick {
+  width: 15px; height: 15px; flex: none; border-radius: 4px;
+  background: var(--accent); color: #fff; font-size: 10px; line-height: 15px; text-align: center;
+}
+.auth-demo-callout {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; margin-top: 2px;
+  background: var(--callout-bg); border-radius: 6px; color: var(--muted);
+}
+.auth-demo-callout .spark { color: var(--agent); flex: none; }
+
+.auth-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px; }
+
+@media (max-width: 900px) {
+  .auth-brand { display: none; }
+}
