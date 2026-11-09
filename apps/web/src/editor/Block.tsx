@@ -333,11 +333,11 @@ function BlockViewInner({ block, index, number }: Props) {
     focusBlock(parsed[parsed.length - 1].id);
   };
 
-  const onClickRendered = (e: React.MouseEvent) => {
-    // Wiki-link click: navigate or create
+  const onMouseDownRendered = (e: React.MouseEvent) => {
+    // Wiki-link: intercept on mouse-down BEFORE focus switches to raw text
     const wikiA = (e.target as HTMLElement).closest('a.wikilink') as HTMLAnchorElement | null;
     if (wikiA) {
-      e.preventDefault();
+      e.preventDefault(); // stop focus + content swap
       const target = wikiA.getAttribute('data-target');
       if (!target) return;
       const state = useStore.getState();
@@ -352,7 +352,11 @@ function BlockViewInner({ block, index, number }: Props) {
       }
       return;
     }
-    const a = (e.target as HTMLElement).closest('a');
+  };
+
+  const onClickRendered = (e: React.MouseEvent) => {
+    // Regular link click (wiki links are handled in onMouseDownRendered)
+    const a = (e.target as HTMLElement).closest('a:not(.wikilink)');
     if (a && (e.metaKey || e.ctrlKey || !focused)) {
       e.preventDefault();
       window.open(a.getAttribute('href') ?? '#', '_blank', 'noopener');
@@ -474,6 +478,7 @@ function BlockViewInner({ block, index, number }: Props) {
           onInput={onInput}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
+          onMouseDown={onMouseDownRendered}
           onClick={onClickRendered}
           onCompositionStart={() => (composing.current = true)}
           onCompositionEnd={() => {
