@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BlockType, Page } from '../types';
 import { useStore, BLOCK_TYPES } from '../store';
-import { newBlock } from '../lib/markdown';
+import { newBlock, normalizeLegacyTables } from '../lib/markdown';
 import { BlockView } from './Block';
 import { EditorContext, type EditorCtx, type SlashState, type WikiState } from './context';
 import { getCaretOffset, setCaretOffset } from './caret';
@@ -37,6 +37,14 @@ export function Editor({ page }: { page: Page }) {
   const [dropTarget, setDropTarget] = useState<EditorCtx['dropTarget']>(null);
   const dragAnchor = useRef<{ node: Node; offset: number; block: Element } | null>(null);
   const pageId = page.id;
+
+  useEffect(() => {
+    const state = useStore.getState();
+    const blocks = state.pages[pageId]?.blocks;
+    if (!blocks) return;
+    const normalized = normalizeLegacyTables(blocks);
+    if (normalized !== blocks) state.setBlocks(pageId, normalized);
+  }, [pageId]);
 
   const applyType = useCallback(
     (blockId: string, type: BlockType) => {

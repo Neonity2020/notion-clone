@@ -71,6 +71,43 @@ export function markdownToBlocks(md: string): Block[] {
   return blocks;
 }
 
+/** Upgrade legacy Markdown table rows stored as separate paragraph blocks. */
+export function normalizeLegacyTables(blocks: Block[]): Block[] {
+  const result: Block[] = [];
+  let changed = false;
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    if (block.type !== 'paragraph') {
+      result.push(block);
+      continue;
+    }
+    // Older content can also contain a whole table in one multiline paragraph.
+    if (parseTable(block.text) && block.text.split('\n').slice(2).every((row) => row.trim() && row.includes('|'))) {
+      result.push({ ...block, type: 'table' });
+      changed = true;
+      continue;
+    }
+    const next = blocks[i + 1];
+    if (!next || next.type !== 'paragraph' || (block.indent ?? 0) !== (next.indent ?? 0)
+      || block.text.includes('\n') || next.text.includes('\n') || !parseTable(`${block.text}\n${next.text}`)) {
+      result.push(block);
+      continue;
+    }
+    const rows = [block.text, next.text];
+    i++;
+    while (i + 1 < blocks.length) {
+      const row = blocks[i + 1];
+      if (row.type !== 'paragraph' || (row.indent ?? 0) !== (block.indent ?? 0)
+        || row.text.includes('\n') || !row.text.trim() || !row.text.includes('|')) break;
+      rows.push(row.text);
+      i++;
+    }
+    result.push({ ...block, type: 'table', text: rows.join('\n') });
+    changed = true;
+  }
+  return changed ? result : blocks;
+}
+
 export function blocksToMarkdown(blocks: Block[], opts: { withIds?: boolean } = {}): string {
   const out: string[] = [];
   let num = 0;
