@@ -5,6 +5,7 @@ import { newBlock, markdownToBlocks } from '../lib/markdown';
 import { displayToRaw, renderInlineHTML, hasInlineMarks } from '../lib/inline';
 import { caretOnEdgeLine, getCaretOffset, getSelectionOffsets, setCaretOffset } from './caret';
 import { useEditor } from './context';
+import { parseTable } from '../lib/table';
 
 const LIST_TYPES: BlockType[] = ['bullet', 'numbered', 'todo'];
 const BULLETS = ['•', '◦', '▪'];
@@ -50,8 +51,8 @@ function BlockViewInner({ block, index, number }: Props) {
   const touched = useStore((s) => !!s.agentTouched[block.id]);
   const focusReq = useStore((s) => (s.focus?.blockId === block.id ? s.focus : null));
   const composing = useRef(false);
-  const isCode = block.type === 'code';
-  const richRender = !isCode && !focused;
+  const isCode = block.type === 'code' || block.type === 'table';
+  const richRender = (!isCode || block.type === 'table') && !focused;
 
   const st = () => useStore.getState();
   const blocks = () => st().pages[pageId]?.blocks ?? [];
@@ -60,7 +61,12 @@ function BlockViewInner({ block, index, number }: Props) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (richRender && hasInlineMarks(block.text)) {
+    const table = block.type === 'table' && richRender ? parseTable(block.text) : null;
+    if (table) {
+      const cell = (text: string, i: number, tag: string) => `<${tag} style="text-align:${table.align[i]}">${renderInlineHTML(text)}</${tag}>`;
+      const html = `<table><thead><tr>${table.header.map((text, i) => cell(text, i, 'th')).join('')}</tr></thead><tbody>${table.rows.map((row) => `<tr>${row.map((text, i) => cell(text, i, 'td')).join('')}</tr>`).join('')}</tbody></table>`;
+      if (el.innerHTML !== html) el.innerHTML = html;
+    } else if (richRender && hasInlineMarks(block.text)) {
       const html = renderInlineHTML(block.text);
       if (el.innerHTML !== html) el.innerHTML = html;
     } else if (el.textContent !== block.text) {
@@ -88,7 +94,10 @@ function BlockViewInner({ block, index, number }: Props) {
 
   const onFocus = () => {
     const el = ref.current!;
-    if (!isCode && hasInlineMarks(block.text) && el.textContent !== block.text) {
+    if (block.type === 'table') {
+      el.textContent = block.text;
+      setCaretOffset(el, -1);
+    } else if (!isCode && hasInlineMarks(block.text) && el.textContent !== block.text) {
       // switch from rendered view to raw markdown, keeping the caret in place
       const off = getCaretOffset(el);
       el.textContent = block.text;

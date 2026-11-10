@@ -1,5 +1,6 @@
 import type { Block, BlockType, Page } from '../types';
 import { uid } from './id';
+import { parseTable } from './table';
 
 export function newBlock(type: BlockType = 'paragraph', text = '', extra: Partial<Block> = {}): Block {
   const b: Block = { id: uid('b_'), type, text, ...extra };
@@ -32,6 +33,14 @@ export function markdownToBlocks(md: string): Block[] {
 
     if (!line.trim()) {
       i++;
+      continue;
+    }
+
+    if (i + 1 < lines.length && parseTable(`${line}\n${lines[i + 1]}`)) {
+      const table = [line, lines[i + 1]];
+      i += 2;
+      while (i < lines.length && lines[i].trim() && lines[i].includes('|')) table.push(lines[i++].trimEnd());
+      blocks.push(newBlock('table', table.join('\n')));
       continue;
     }
 

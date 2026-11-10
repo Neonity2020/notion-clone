@@ -11,7 +11,7 @@ export interface ToolContext {
   touchedPages: Set<string>;
 }
 
-const BLOCK_TYPES: BlockType[] = ['paragraph', 'h1', 'h2', 'h3', 'bullet', 'numbered', 'todo', 'quote', 'callout', 'code', 'divider'];
+const BLOCK_TYPES: BlockType[] = ['paragraph', 'h1', 'h2', 'h3', 'bullet', 'numbered', 'todo', 'quote', 'callout', 'code', 'table', 'divider'];
 
 function fmtBlock(b: Block): string {
   const meta: string[] = [b.type];

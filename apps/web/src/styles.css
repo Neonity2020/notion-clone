@@ -212,6 +212,11 @@ kbd { font-family: var(--font); font-size: 11px; color: var(--muted); margin-lef
 .agent-panel-container.is-open { width: 400px; }
 .agent-panel { box-sizing: border-box; width: 400px; height: 100%; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: var(--bg); transform: translateX(100%); transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1); }
 .agent-panel-container.is-open .agent-panel { transform: translateX(0); }
+.block.table, .markdown-table { overflow-x: auto; }
+.block.table table, .markdown-table table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.block.table th, .block.table td, .markdown-table th, .markdown-table td { border: 1px solid var(--border); padding: 8px 10px; min-width: 80px; }
+.block.table th, .markdown-table th { background: var(--bg-hover); font-weight: 600; }
+.block.table:focus { white-space: pre-wrap; font-family: monospace; }
 .agent-header { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .mode-switch { display: flex; background: var(--bg-hover); border-radius: 8px; padding: 2px; }
 .mode-switch button { padding: 4px 12px; border-radius: 6px; font-size: 13px; color: var(--muted); }

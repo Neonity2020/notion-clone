@@ -7,6 +7,7 @@ import { EditorContext, type EditorCtx, type SlashState, type WikiState } from '
 import { getCaretOffset, setCaretOffset } from './caret';
 import { SelectionAI } from '../agent/SelectionAI';
 import { searchPages } from '../lib/wikilink';
+import { getMultiSelection, replaceMultiSelection, selectedText } from './multiSelection';
 
 function filterTypes(q: string) {
   const s = q.toLowerCase().trim();
@@ -34,6 +35,7 @@ export function Editor({ page }: { page: Page }) {
   wikiRef.current = wiki;
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<EditorCtx['dropTarget']>(null);
+  const dragAnchor = useRef<{ node: Node; offset: number; block: Element } | null>(null);
   const pageId = page.id;
 
   const applyType = useCallback(
@@ -231,9 +233,87 @@ export function Editor({ page }: { page: Page }) {
 
   const items = slash ? filterTypes(slash.query) : [];
 
+  const replaceSelection = (editor: HTMLElement, text: string) => {
+    const state = useStore.getState();
+    const blocks = state.pages[pageId]?.blocks;
+    if (!blocks) return false;
+    const selection = getMultiSelection(editor, blocks);
+    if (!selection) return false;
+    const result = replaceMultiSelection(blocks, selection, text);
+    window.getSelection()?.removeAllRanges();
+    state.setBlocks(pageId, result.blocks);
+    state.requestFocus(result.focusId, result.offset);
+    return true;
+  };
+
+  const copySelection = (e: React.ClipboardEvent<HTMLDivElement>, cut: boolean) => {
+    const blocks = useStore.getState().pages[pageId]?.blocks;
+    if (!blocks) return;
+    const selection = getMultiSelection(e.currentTarget, blocks);
+    if (!selection) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', selectedText(blocks, selection));
+    if (cut) replaceSelection(e.currentTarget, '');
+  };
+
   return (
     <EditorContext.Provider value={ctx}>
-      <div className="editor">
+      <div className="editor"
+        onMouseDownCapture={(e) => {
+          dragAnchor.current = null;
+          if (e.button !== 0 || e.shiftKey) return;
+          const block = (e.target as Element).closest('[data-block-id][contenteditable]');
+          const position = document.caretRangeFromPoint(e.clientX, e.clientY);
+          if (block && position && block.contains(position.startContainer)) {
+            dragAnchor.current = { node: position.startContainer, offset: position.startOffset, block };
+          }
+        }}
+        onMouseMoveCapture={(e) => {
+          const anchor = dragAnchor.current;
+          if (!anchor || !(e.buttons & 1) || !anchor.node.isConnected) return;
+          const position = document.caretRangeFromPoint(e.clientX, e.clientY);
+          const block = position?.startContainer.parentElement?.closest('[data-block-id][contenteditable]');
+          if (!position || !block || block === anchor.block || !e.currentTarget.contains(block)) return;
+          e.preventDefault();
+          window.getSelection()?.setBaseAndExtent(anchor.node, anchor.offset, position.startContainer, position.startOffset);
+        }}
+        onMouseUpCapture={() => { dragAnchor.current = null; }}
+        onCopyCapture={(e) => copySelection(e, false)}
+        onCutCapture={(e) => copySelection(e, true)}
+        onPasteCapture={(e) => {
+          const blocks = useStore.getState().pages[pageId]?.blocks;
+          if (!blocks || !getMultiSelection(e.currentTarget, blocks)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          replaceSelection(e.currentTarget, e.clipboardData.getData('text/plain'));
+        }}
+        onKeyDownCapture={(e) => {
+          const blocks = useStore.getState().pages[pageId]?.blocks;
+          if (!blocks) return;
+          if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'a') {
+            const editable = e.currentTarget.querySelectorAll<HTMLElement>('[data-block-id][contenteditable]');
+            if (editable.length < 2) return;
+            const range = document.createRange();
+            range.setStart(editable[0], 0);
+            const last = editable[editable.length - 1];
+            range.setEnd(last, last.childNodes.length);
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          if (!getMultiSelection(e.currentTarget, blocks) || e.nativeEvent.isComposing) return;
+          const text = e.key === 'Backspace' || e.key === 'Delete' ? ''
+            : e.key === 'Enter' ? '\n'
+            : !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1 ? e.key : null;
+          if (text === null) return;
+          e.preventDefault();
+          e.stopPropagation();
+          replaceSelection(e.currentTarget, text);
+        }}
+      >
         {page.blocks.map((b, i) => (
           <BlockView key={b.id} block={b} index={i} number={numbers[i]} />
         ))}

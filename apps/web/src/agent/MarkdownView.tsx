@@ -1,6 +1,7 @@
 import { Fragment, useMemo } from 'react';
 import { markdownToBlocks } from '../lib/markdown';
 import { parseInline } from '../lib/inline';
+import { parseTable } from '../lib/table';
 
 function Inline({ text }: { text: string }) {
   return (
@@ -43,6 +44,11 @@ export function MarkdownView({ text }: { text: string }) {
           case 'quote':
           case 'callout': return <blockquote key={b.id}><Inline text={b.text} /></blockquote>;
           case 'code': return <pre key={b.id}><code>{b.text}</code></pre>;
+          case 'table': {
+            const table = parseTable(b.text);
+            if (!table) return <p key={b.id}>{b.text}</p>;
+            return <div className="markdown-table" key={b.id}><table><thead><tr>{table.header.map((cell, i) => <th key={i} style={{ textAlign: table.align[i] as React.CSSProperties['textAlign'] }}><Inline text={cell} /></th>)}</tr></thead><tbody>{table.rows.map((row, r) => <tr key={r}>{row.map((cell, i) => <td key={i} style={{ textAlign: table.align[i] as React.CSSProperties['textAlign'] }}><Inline text={cell} /></td>)}</tr>)}</tbody></table></div>;
+          }
           case 'divider': return <hr key={b.id} />;
           default: return <p key={b.id}><Inline text={b.text} /></p>;
         }
