@@ -42,8 +42,9 @@ The local storage layer (`persist.ts` + `lib/db.ts`) that:
 
 ### Desktop
 The Electron wrapper (`apps/desktop/`):
-- **main.ts**: main process (window management, IPC)
+- **main.ts**: main process (window management, IPC); resolves paths from `app.getAppPath()`
 - **preload.ts**: preloads and exposes APIs to the renderer
+- **dist/renderer**: the static renderer copied from `apps/web` at build time; loaded over `file://`
 
 ## Avoid These Terms
 

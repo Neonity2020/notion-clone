@@ -9,7 +9,6 @@
       "name": "@notion-clone/desktop",
       "version": "0.1.0",
       "dependencies": {
-        "@notion-clone/web": "workspace:*",
         "better-sqlite3": "^13.0.3",
       },
       "devDependencies": {

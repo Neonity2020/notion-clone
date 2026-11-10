@@ -2,10 +2,13 @@
   "name": "@notion-clone/desktop",
   "private": true,
   "version": "0.1.0",
+  "description": "NotionClone desktop shell: Electron main process, preload bridge and the bundled static renderer.",
+  "author": "NotionClone",
   "type": "commonjs",
   "main": "dist/main.js",
   "scripts": {
-    "build": "bun run build:main && bun run build:preload",
+    "build": "bun run build:renderer && bun run build:main && bun run build:preload",
+    "build:renderer": "bun run scripts/build-renderer.ts",
     "build:main": "bun build src/main.ts --outfile dist/main.js --target node --format cjs --external electron --external better-sqlite3",
     "build:preload": "bun build src/preload.ts --outfile dist/preload.js --target node --format cjs --external electron",
     "dev": "bun run build && electron .",
@@ -15,7 +18,6 @@
     "dist": "bun run build && electron-builder"
   },
   "dependencies": {
-    "@notion-clone/web": "workspace:*",
     "better-sqlite3": "^13.0.3"
   },
   "devDependencies": {
@@ -33,8 +35,7 @@
       "output": "release"
     },
     "files": [
-      "dist/**/*",
-      "../web/dist-desktop/**/*"
+      "dist/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",

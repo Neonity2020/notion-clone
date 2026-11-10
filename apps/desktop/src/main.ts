@@ -17,18 +17,44 @@ if (app) {
 
 let mainWindow: BrowserWindow | null = null;
 
+/**
+ * Root of the running Electron app.
+ *
+ * `__dirname` must not be used here: Bun's bundler rewrites it to the source
+ * folder of the machine that produced the bundle, which breaks packaged apps
+ * on any other machine. `app.getAppPath()` is resolved at runtime instead.
+ */
+function appRoot(): string {
+  try {
+    return app.getAppPath();
+  } catch {
+    return process.cwd();
+  }
+}
+
 function getPreloadPath(): string {
+  const root = appRoot();
   const candidates = [
-    path.join(__dirname, '../dist/preload.js'),
-    path.join(__dirname, 'dist/preload.js'),
-    path.join(__dirname, 'preload.js'),
-    path.join(app.getAppPath(), 'dist/preload.js'),
-    path.join(app.getAppPath(), 'apps/desktop/dist/preload.js'),
+    path.join(root, 'dist/preload.js'),
+    path.join(root, 'preload.js'),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
   }
-  return path.join(__dirname, 'preload.js');
+  return candidates[0];
+}
+
+/** Static renderer entry, packaged inside the app directory as `dist/renderer`. */
+function getRendererEntry(): string | null {
+  const root = appRoot();
+  const candidates = [
+    path.join(root, 'dist/renderer/desktop.html'),
+    // Development fallback: renderer built in place by the web app.
+    path.join(root, '..', 'web', 'dist-desktop', 'desktop.html'),
+    // Legacy packaged layout, where the web workspace shipped as a dependency.
+    path.join(root, 'node_modules', '@notion-clone', 'web', 'dist-desktop', 'desktop.html'),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) ?? null;
 }
 
 function checkDevServer(url: string): Promise<boolean> {
@@ -69,7 +95,11 @@ async function createWindow() {
     console.error('PRELOAD_ERROR at', preloadPath, error);
   });
 
-  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+  mainWindow.webContents.on('console-message', (event, ...rest) => {
+    // Electron >= 37 exposes the payload on the event object; the positional
+    // arguments are deprecated and removed in a future release.
+    const detail = rest[0] && typeof rest[0] === 'object' ? rest[0] : (event as any);
+    const message = detail?.message ?? String(event ?? '');
     console.log('[Renderer Console]', message);
   });
 
@@ -98,20 +128,13 @@ async function createWindow() {
   }
 
   if (!loaded) {
-    // Try multiple possible paths to web/dist-desktop/desktop.html (dev vs packaged)
-    const candidates = [
-      path.join(__dirname, '../../web/dist-desktop/desktop.html'),
-      path.join(__dirname, '../web/dist-desktop/desktop.html'),
-      path.join(app.getAppPath(), 'apps/web/dist-desktop/desktop.html'),
-      path.join(app.getAppPath(), 'dist/index.html'),
-    ];
-
-    const targetFile = candidates.find((p) => fs.existsSync(p));
+    const targetFile = getRendererEntry();
     if (targetFile) {
+      console.log('[main] renderer entry:', targetFile);
       await mainWindow.loadFile(targetFile);
     } else {
-      // If web dist doesn't exist yet, show guidance or try dev server
-      console.warn('Web build not found in candidates:', candidates);
+      // If the renderer build is missing, show guidance or try the dev server
+      console.warn('[main] renderer build not found under', appRoot());
       try {
         await mainWindow.loadURL(devServerUrl);
       } catch {

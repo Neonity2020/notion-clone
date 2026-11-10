@@ -45,6 +45,12 @@ bun run package:desktop
 bun run db:generate    # After changing the Drizzle schema; review generated SQL
 ```
 
+The desktop app is self-contained: `bun run build:renderer` builds the static
+renderer of `apps/web` and copies it into `apps/desktop/dist/renderer`, and the
+main process resolves the preload script and the renderer entry from
+`app.getAppPath()`. A packaged `.app` therefore runs on a machine without this
+repository. See [ADR-0005](docs/adr/0005-electron-desktop-packaging.md).
+
 ## Cloudflare deployment
 
 This is a Workers deployment, not a static Pages deployment. The checked-in Wrangler
