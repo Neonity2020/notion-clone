@@ -10,7 +10,7 @@ const clerkZhCN = { ...zhCN, formFieldInputPlaceholder__password: '请输入密�
 export const Route = createRootRoute({
   head: () => ({
     meta: [{ charSet: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1' }, { title: 'Notes · 块笔记' }],
-    links: [{ rel: 'stylesheet', href: styles }],
+    links: [{ rel: 'stylesheet', href: styles }, { rel: 'icon', type: 'image/png', href: '/product-favicon.png' }],
   }),
   component: Root,
   notFoundComponent: () => <main className="loading"><a href="/">页面不存在，返回首页</a></main>,

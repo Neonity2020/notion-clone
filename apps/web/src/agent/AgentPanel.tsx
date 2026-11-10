@@ -112,7 +112,9 @@ export function AgentPanel() {
   }, [items]);
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    if (!open) return;
+    const timeout = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(timeout);
   }, [open]);
 
   const submit = (text: string) => {
@@ -121,10 +123,10 @@ export function AgentPanel() {
     void send(text);
   };
 
-  if (!open) return null;
-
   return (
-    <aside className="agent-panel">
+    <>
+    <div className={`agent-panel-container${open ? ' is-open' : ''}`} aria-hidden={!open} inert={!open}>
+    <aside className="agent-panel" id="agent-panel" aria-label="AI 侧边栏">
       <header className="agent-header">
         <div className="mode-switch" role="tablist">
           <button className={mode === 'ask' ? 'on' : ''} onClick={() => setMode('ask')} title="只读：搜索和阅读你的笔记">
@@ -208,7 +210,9 @@ export function AgentPanel() {
           )}
         </div>
       </div>
-      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
     </aside>
+    </div>
+    {open && showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
+    </>
   );
 }

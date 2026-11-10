@@ -65,6 +65,8 @@ export function PageView({ sidebarCollapsed, onExpandSidebar }: { sidebarCollaps
       )}
       <button
         className={`btn small ${agentOpen ? 'primary' : 'ghost'}`}
+        aria-expanded={agentOpen}
+        aria-controls="agent-panel"
         title="打开/关闭右侧 AI Agent 侧边栏 (⌘J)"
         onClick={() => useStore.getState().setAgentOpen(!agentOpen)}
       >

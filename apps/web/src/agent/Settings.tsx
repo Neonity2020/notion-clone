@@ -4,6 +4,7 @@ import { PRESETS, chat, loadSettings, saveSettings, type LLMSettings } from './l
 export function SettingsDialog({ onClose }: { onClose(): void }) {
   const [s, setS] = useState<LLMSettings>(loadSettings);
   const [test, setTest] = useState<{ state: 'idle' | 'running' | 'ok' | 'error'; msg?: string }>({ state: 'idle' });
+  const [saveError, setSaveError] = useState(false);
 
   const runTest = async () => {
     setTest({ state: 'running' });
@@ -42,6 +43,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
         {test.state !== 'idle' && (
           <div className={`test-result ${test.state}`}>{test.state === 'running' ? '测试中…' : test.msg}</div>
         )}
+        {saveError && <div className="test-result error" role="alert">保存失败，请检查浏览器是否允许本地存储后重试。</div>}
         <div className="modal-actions">
           <button className="btn" onClick={runTest} disabled={test.state === 'running'}>
             测试连接
@@ -51,8 +53,12 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
           <button
             className="btn primary"
             onClick={() => {
-              saveSettings(s);
-              onClose();
+              try {
+                saveSettings(s);
+                onClose();
+              } catch {
+                setSaveError(true);
+              }
             }}
           >
             保存

@@ -53,11 +53,16 @@ export const PRESETS: { name: string; baseURL: string; model: string }[] = [
 ];
 
 export function loadSettings(): LLMSettings {
+  const defaults = { baseURL: PRESETS[0].baseURL, apiKey: '', model: PRESETS[0].model };
   try {
     const s = JSON.parse(localStorage.getItem(storageKey(KEY)) || 'null');
-    if (s && s.baseURL) return s;
+    if (s && typeof s === 'object') return {
+      baseURL: typeof s.baseURL === 'string' ? s.baseURL : defaults.baseURL,
+      apiKey: typeof s.apiKey === 'string' ? s.apiKey : defaults.apiKey,
+      model: typeof s.model === 'string' ? s.model : defaults.model,
+    };
   } catch {}
-  return { baseURL: PRESETS[0].baseURL, apiKey: '', model: PRESETS[0].model };
+  return defaults;
 }
 
 export function saveSettings(s: LLMSettings) {
